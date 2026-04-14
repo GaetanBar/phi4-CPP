@@ -30,6 +30,8 @@ for lam in lambd_list:
 
     v_t = U.evolve(v0)
 
+    coeffs = h.state_to_square(v_t)
+    print(' coeffs = ', coeffs)
+
     fname = f"N_s={N_s}_m={m}_phimax={phi_max}_lam{lam:.2f}_t={t}.npy"
-    np.save(os.path.join(out_dir, fname), v_t)
-    print(' out = ', h.state_to_square(v_t))
+    np.save(os.path.join(out_dir, fname), coeffs)
