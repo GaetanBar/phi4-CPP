@@ -1,5 +1,5 @@
 import numpy as np
-
+import scipy 
 
 class ScalarFieldHamiltonian:
 
@@ -16,8 +16,10 @@ class ScalarFieldHamiltonian:
         self.N_phi = round(2 * phi_max / delta_phi) + 1
         self.phi_vals = np.linspace(-phi_max, phi_max, self.N_phi)
         self.dim = self.N_phi ** n_sites
-
+        
+        self.basis = self._basis()  
         self._H = None  
+
 
     #Helpers
 
@@ -33,6 +35,31 @@ class ScalarFieldHamiltonian:
         right = np.eye(self.N_phi ** (self.n_sites - site - 2))
         return np.kron(left, np.kron(op2, right))
 
+
+    #State manipulation methods
+
+    def _basis(self) -> np.ndarray:
+        """Generate the full basis of field configurations in lexicographic order."""
+
+        grids = np.meshgrid(*[self.phi_vals] * self.n_sites, indexing='ij')
+        return np.array(grids).reshape(self.n_sites, -1).T
+
+    def id_to_config(self, idx: int)->np.ndarray:
+        return self.basis[idx]
+    
+    def config_to_id(self, state: np.ndarray) -> int:
+        indices = np.round((np.asarray(state) + self.phi_max) / self.delta_phi).astype(int)
+        return int(np.ravel_multi_index(indices, (self.N_phi,) * self.n_sites))
+    
+    def config_to_state(self, config: np.ndarray) -> np.ndarray:
+        psi = np.zeros(self.dim)
+        psi[self.config_to_id(config)] = 1.0
+        return psi
+    
+    def state_to_square(self, state: np.ndarray) -> np.ndarray:
+        return (state * state.conj()).real
+
+    #Matrix Construction 
 
     def _kinetic_local(self) -> np.ndarray:
         #ok
@@ -90,14 +117,12 @@ class ScalarFieldHamiltonian:
 
     @property
     def hamiltonian(self) -> np.ndarray:
-        """Full (dim x dim) Hamiltonian matrix (real, symmetric). Cached after first call."""
+
         if self._H is None:
             self._H = self._build()
         return self._H
 
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
+    #Data Management 
 
     def save_matrix(self, path: str) -> None:
         #Need to buid H first
@@ -114,3 +139,18 @@ class ScalarFieldHamiltonian:
         H[i, j] = data["upper"]
         H[j, i] = data["upper"]  # mirror to lower triangle
         return H
+
+
+class Unitary:
+    #A class for exp(iHt), contains time evolution method. 
+    def __init__(self, t):
+        self.t = t
+        self.U = None
+
+    def compute(self, H):
+        self.U = scipy.linalg.expm(-1j * H * self.t)    
+
+    def evolve(self, psi0):
+        if self.U is None:
+            raise ValueError("Unitary not computed yet. Call compute(H) first.")
+        return self.U @ psi0    
