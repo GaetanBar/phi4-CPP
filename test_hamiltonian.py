@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from hamiltonian import ScalarFieldHamiltonian, Unitary
 
-t    = 2.
+t    = 2.0
 N_s  = 3
 m    = 1.
 a    = 1.
@@ -21,6 +21,8 @@ for lam in lambd_list:
     h = ScalarFieldHamiltonian(n_sites=N_s, phi_max=phi_max, delta_phi=delta_phi, m=m, lam=lam, a=a)
     v0 = h.config_to_state(h.id_to_config(0))
 
+    print('v0 = ', v0)
+    print('basis:', h._basis())
     print(f'lambda={lam}')
 
     U  = Unitary(t=t)

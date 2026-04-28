@@ -5,13 +5,14 @@ class ScalarFieldHamiltonian:
 
 
     def __init__(self, n_sites: int, phi_max: float, delta_phi: float,
-                 m: float, lam: float, a: float = 1.0):
+                 m: float, lam: float, a: float = 1.0, Js: np.ndarray = None):
         self.n_sites = n_sites
         self.phi_max = phi_max
         self.delta_phi = delta_phi
         self.m = m
         self.lam = lam
         self.a = a
+
 
         self.N_phi = round(2 * phi_max / delta_phi) + 1
         self.phi_vals = np.linspace(-phi_max, phi_max, self.N_phi)
@@ -85,6 +86,23 @@ class ScalarFieldHamiltonian:
         T[n-1, 0] = off_val
         return T
 
+    def _kinetic_local_QFT(self) -> np.ndarray:
+        """
+        pi^2 / 2 in the field basis via the discrete Fourier transform.
+        """
+        N = self.N_phi
+        d = self.delta_phi
+
+        p = 2.0 * np.pi * np.fft.fftfreq(N, d=d)
+        T_p = 0.5 * p**2
+
+        n = np.arange(N)
+        F = np.exp(-2j * np.pi * np.outer(n, n) / N) / np.sqrt(N)
+
+        T = F.conj().T @ np.diag(T_p) @ F
+        return T.real
+        
+
     def _potential_local(self) -> np.ndarray:
         #ok
         phi = self.phi_vals
@@ -93,7 +111,7 @@ class ScalarFieldHamiltonian:
 
 
     def _build(self) -> np.ndarray:
-        T_loc = self._kinetic_local()
+        T_loc = self._kinetic_local_QFT()
         V_loc = self._potential_local()
         Phi = np.diag(self.phi_vals)
         Phi2 = np.diag(self.phi_vals**2)
