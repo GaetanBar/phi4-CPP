@@ -5,7 +5,7 @@ class ScalarFieldHamiltonian:
 
 
     def __init__(self, n_sites: int, phi_max: float, delta_phi: float,
-                 m: float, lam: float, a: float = 1.0, Js: np.ndarray = None):
+                 m: float, lam: float, a: float = 1.0, J: np.ndarray = None):
         self.n_sites = n_sites
         self.phi_max = phi_max
         self.delta_phi = delta_phi
@@ -13,6 +13,7 @@ class ScalarFieldHamiltonian:
         self.lam = lam
         self.a = a
 
+        self.J = J if J is not None else [1/2,(m**2)/2,1/2,lam/24]  # [kinetic, mass, gradient, quartic]
 
         self.N_phi = round(2 * phi_max / delta_phi) + 1
         self.phi_vals = np.linspace(-phi_max, phi_max, self.N_phi)
@@ -89,12 +90,15 @@ class ScalarFieldHamiltonian:
     def _kinetic_local_QFT(self) -> np.ndarray:
         """
         pi^2 / 2 in the field basis via the discrete Fourier transform.
+
+        Also assume PBCs. 
         """
         N = self.N_phi
         d = self.delta_phi
 
-        p = 2.0 * np.pi * np.fft.fftfreq(N, d=d)
-        T_p = 0.5 * p**2
+        # what are the eigenvalues? --> 2pi n/ (d_phi*delta_phi) bcoz PBCs
+        p = 2.0 * np.pi * np.fft.fftfreq(N, d=d) +np.pi/(N*d)
+        T_p = self.J[0] * p**2
 
         n = np.arange(N)
         F = np.exp(-2j * np.pi * np.outer(n, n) / N) / np.sqrt(N)
@@ -106,7 +110,8 @@ class ScalarFieldHamiltonian:
     def _potential_local(self) -> np.ndarray:
         #ok
         phi = self.phi_vals
-        v = 0.5 * self.m**2 * phi**2 + (self.lam / 24.0) * phi**4
+        # v = 0.5 * self.m**2 * phi**2 + (self.lam / 24.0) * phi**4
+        v = self.J[1]* phi**2 + self.J[3]* phi**4
         return np.diag(v)
 
 
@@ -126,7 +131,7 @@ class ScalarFieldHamiltonian:
         # Gradient interaction (phi_j - phi_{j+1})^2 / (2 a^2)
         if self.n_sites > 1:
             W_diag = np.kron(Phi2, I) + np.kron(I, Phi2) - 2.0 * np.kron(Phi, Phi)
-            W_diag /= 2.0 * self.a**2
+            W_diag /= self.J[2] * self.a**2
             for j in range(self.n_sites - 1):
                 H += self._embed2(W_diag, j)
 
@@ -160,7 +165,7 @@ class ScalarFieldHamiltonian:
 
 
 class Unitary:
-    #A class for exp(iHt), contains time evolution method. 
+    #A class for exp(-iHt), contains time evolution method. 
     def __init__(self, t):
         self.t = t
         self.U = None
