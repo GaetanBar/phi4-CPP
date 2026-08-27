@@ -1,0 +1,6 @@
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+quimb>=1.4,<2
+cotengra==0.8.0
+qiskit>=1.0
